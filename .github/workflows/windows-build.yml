@@ -42,17 +42,56 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # <-- Minimal addition: setup Flutter (so Dart 3.9+ is available)
+    # Setup Flutter so Dart 3.9+ is available
     - name: Setup Flutter (3.35.x)
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.35.5'
         channel: stable
 
-    - name: Show Flutter / Dart versions
+    # Diagnostic snippet: ensure the workflow actually uses the installed flutter
+    - name: Diagnose Flutter / ensure correct SDK used (PowerShell)
+      shell: pwsh
       run: |
-        flutter --version
-        dart --version
+        Write-Host "=== PATH (truncated) ==="
+        # show PATH (truncated length to avoid huge output in logs)
+        $env:PATH.Substring(0, [Math]::Min(1000, $env:PATH.Length)) | Write-Host
+        Write-Host "=== where flutter ==="
+        where.exe flutter 2>&1 | Write-Host
+        Write-Host "=== Get-Command flutter ==="
+        try {
+          Get-Command flutter | Format-List -Property Path -Force | Write-Host
+        } catch {
+          Write-Host "Get-Command flutter failed or flutter not found"
+        }
+
+        # If flutter exists, infer SDK root, set FLUTTER_ROOT and prepend flutter/bin to PATH for later steps
+        $cmd = Get-Command flutter -ErrorAction SilentlyContinue
+        if ($cmd) {
+          $flutterCmd = $cmd.Path
+          $flutterBinDir = Split-Path $flutterCmd -Parent
+          $flutterSdkRoot = Split-Path $flutterBinDir -Parent
+          Write-Host "Found flutter at: $flutterCmd"
+          Write-Host "Inferred FLUTTER_SDK_ROOT: $flutterSdkRoot"
+
+          "FLUTTER_ROOT=$flutterSdkRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # Prepend flutter/bin to PATH for subsequent steps
+          $newPath = "$flutterBinDir;$env:PATH"
+          "PATH=$newPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Prepended flutter/bin to PATH for later steps: $flutterBinDir"
+        } else {
+          Write-Host "flutter command not found. The setup action may have failed or PATH isn't updated yet."
+        }
+
+        Write-Host "=== flutter --version ==="
+        flutter --version 2>&1 | Write-Host
+
+        Write-Host "=== dart --version ==="
+        dart --version 2>&1 | Write-Host
+
+        Write-Host "Attempting flutter pub cache repair (may be helpful if stale cache exists)..."
+        flutter pub cache repair 2>&1 | Write-Host || Write-Host "pub cache repair failed or returned non-zero (not fatal)"
 
     - name: Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v5
