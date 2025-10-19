@@ -42,6 +42,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # <-- Minimal addition: setup Flutter (so Dart 3.9+ is available)
+    - name: Setup Flutter (3.35.x)
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.35.5'
+        channel: stable
+
+    - name: Show Flutter / Dart versions
+      run: |
+        flutter --version
+        dart --version
+
     - name: Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v5
       with:
