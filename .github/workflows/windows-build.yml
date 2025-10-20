@@ -12,6 +12,9 @@ env:
   BUILD_VERSION: 1.0.0
   PYTHON_VERSION: 3.11
   FLET_CLI_VERSION: 0.28.3
+  PYTHONUTF8: 1
+  FLET_CLI_NO_RICH_OUTPUT: 1
+  UV_NO_PROGRESS: 1
 
 jobs:
   build:
@@ -31,9 +34,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet-cli==${{ env.FLET_CLI_VERSION }}
 
+      - name: Diagnose environment
+        run: |
+          chcp 65001
+          set PYTHONIOENCODING=utf-8
+          flet doctor
+
       - name: Build for Windows
         run: |
-          flet doctor
+          chcp 65001
+          set PYTHONIOENCODING=utf-8
           flet build windows --verbose --no-rich-output --build-number=${{ env.BUILD_NUMBER }} --build-version=${{ env.BUILD_VERSION }}
 
       - name: Upload build artifact
